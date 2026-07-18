@@ -2,7 +2,7 @@
 
 Run: July 2026, Corretto JDK 24.0.2 (Apple Silicon), BouncyCastle 1.85.
 Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
-`provider-matrix.csv`, `cose-vs-jose.csv`, `hpack.csv`.
+`provider-matrix.csv`, `cose-vs-jose.csv`, `hpack.csv`, `hpack-table-sweep.csv`.
 
 ## Headline results
 
@@ -55,7 +55,17 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
    is therefore ~3,900:1, not the ~7:1 the raw token sizes suggest. ML-DSA-44
    with lean claims is the last configuration that rides HTTP/2 efficiently.
 
-8. **The cost of ML-DSA at the token layer is bytes, not CPU** — consistent with
+8. **The HPACK cliff has a one-line fix with a quantified price: raising
+   SETTINGS_HEADER_TABLE_SIZE to 8 KiB restores full indexing for every ML-DSA-44
+   and ML-DSA-65 token** (16 KiB adds ML-DSA-87 enterprise and SLH-DSA-128s;
+   32 KiB covers everything tested). Once indexed, steady state returns to
+   ~1 byte/request, saving 3.8–20 KB per request; the extra table memory pays for
+   itself in wire bytes within 2–3 requests on a connection. The cost is
+   per-connection decoder memory (×4 at 16 KiB), which a high-concurrency
+   gateway multiplies by its connection count — a real but bounded price, and
+   the single most effective HTTP/2 mitigation this study found.
+
+9. **The cost of ML-DSA at the token layer is bytes, not CPU** — consistent with
    the companion X.509 certpath study. ML-DSA sign/verify medians (155–323 µs /
    67–118 µs) sit inside the classical envelope (RS256 sign is *slower* at
    ~610–646 µs). **SLH-DSA-SHA2-128s signing is the exception: 522 ms per token**,
@@ -151,6 +161,21 @@ encoder skips Huffman below 512 B as a CPU optimization; browsers and nghttp2
 Huffman-encode regardless, so ~19–20% is the transferable figure. QPACK (HTTP/3,
 RFC 9204) shares the static Huffman table and dynamic-table economics.
 
+## E6 — SETTINGS_HEADER_TABLE_SIZE sweep
+
+Smallest swept table size at which each token class becomes indexable (entry =
+name + value + 32; steady state ~1 B/request once indexed):
+
+| table size | newly indexable | wire saved per request | payback (requests) |
+|---|---|---|---|
+| 4 KiB (default) | all classical; ML-DSA-44 minimal/oidc | — | — |
+| 8 KiB | ML-DSA-44 enterprise; **all ML-DSA-65**; ML-DSA-87 minimal/oidc | 3,847–5,703 B | 2–3 |
+| 16 KiB | ML-DSA-87 enterprise; all SLH-DSA-128s | 7,098–10,582 B | 2–3 |
+| 32 KiB | all SLH-DSA-128f | 18,549–20,390 B | 2 |
+
+Full grid (5 table sizes × 24 tokens) in `hpack-table-sweep.csv`. Request 1
+includes the dynamic-table-size-update bytes emitted by the resize.
+
 ## What restores compatibility (from the E1 data)
 
 | mitigation | effect measured |
@@ -159,15 +184,16 @@ RFC 9204) shares the static Huffman table and dynamic-table economics.
 | `kid` instead of `jwk`/`x5c` | −2.4 KB to −21 KB; mandatory for PQ, sufficient to keep ML-DSA-44/65 under every 8 KiB header limit |
 | Trim enterprise claims (groups by reference) | −2.3 KB payload; moves ML-DSA-87 back under the 8 KiB ceilings, ML-DSA-44 back under the HPACK indexability line |
 | CWT/COSE instead of JWT (E4) | −26–28% on binary transports; only −2–4% in HTTP headers — does not rescue the ML-DSA-65 cookie |
-| HTTP/2 HPACK (E5) | −19–20% bandwidth; zero headroom against limits (enforced on uncompressed octets); indexing benefit unavailable to any token ≥ ML-DSA-65 |
+| HTTP/2 HPACK (E5) | −19–20% bandwidth; zero headroom against limits (enforced on uncompressed octets); indexing benefit unavailable to any token ≥ ML-DSA-65 at the default table |
+| Raise SETTINGS_HEADER_TABLE_SIZE (E6) | 8 KiB re-indexes all ML-DSA-44/65 (steady state ~1 B/req, payback in 2–3 requests); cost is per-connection decoder memory × fleet concurrency |
 | Token-by-reference (opaque handle + introspection) | sidesteps all limits; the only pattern that carries SLH-DSA |
 | SLH-DSA-128f instead of -128s for issuance latency | 522 ms → 23 ms sign, but +12.3 KB token — solves the CPU problem by worsening the fatal size problem |
 
 ## Follow-up work
 
 - Spring Cloud Gateway / Kong / Envoy as intermediaries (proxy default limits,
-  and whether they mark `authorization` never-indexed).
-- Raising `SETTINGS_HEADER_TABLE_SIZE` to re-enable indexing for PQ tokens:
-  memory-per-connection cost on a busy gateway vs the 3,900:1 wire saving.
+  whether they mark `authorization` never-indexed, and whether their
+  SETTINGS_HEADER_TABLE_SIZE is even configurable — the E6 fix is only available
+  where the knob exists).
 - Detached-payload JWS (RFC 7797) and split-token/cookie-sharding patterns.
 - CWT end-to-end on a genuinely binary transport (gRPC metadata-bin, MQTT v5).

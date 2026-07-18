@@ -35,6 +35,10 @@ No published study measures this empirically. This repository is that experiment
   tokens — how much does the static Huffman table claw back from base64url text,
   and can PQ tokens be indexed in the default 4,096-byte dynamic table at all
   (i.e., what is the steady-state per-request wire cost)?
+- **RQ6 (table sizing):** How large must SETTINGS_HEADER_TABLE_SIZE be to restore
+  dynamic-table indexing for each PQ token class, and what is the trade —
+  per-connection decoder memory committed vs literal bytes saved per request
+  (payback horizon)?
 
 ## Factors
 
@@ -92,6 +96,15 @@ consecutive encodings on one encoder reveal whether the entry was indexed
 indexability is also derived analytically: name + value + 32 ≤ 4,096 (RFC 7541
 §4.1). The list-size guard is raised to 1 MiB so 23 KB SLH-DSA tokens are
 measurable; the dynamic table is left at its default.
+
+**Table-size sweep (E6).** Same encoder setup as E5 (NEVER_SENSITIVE), sweeping
+the dynamic table over 4/8/16/32/64 KiB. The resize is applied before the first
+header block, so request 1 includes the dynamic-table-size-update bytes; requests
+2–3 collapsing to ~1 byte proves indexing engaged at that size. Reported per
+combination: steady-state bytes, wire bytes saved per request vs the 4 KiB
+default, and `payback_requests` = table size / per-request saving. The advertised
+table size is decoder memory a server commits *per connection*; fleet cost is
+that times concurrent connections, which the write-up states rather than models.
 
 **Bench protocol (E3).** Timed operation = the full per-request path
 (`Signature.getInstance` + init + update + sign/verify) over the OIDC ID-token

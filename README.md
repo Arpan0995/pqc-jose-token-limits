@@ -37,6 +37,10 @@ deployment-planning data that U.S. enterprises and agencies migrating under NIST
   token ≥ ML-DSA-65 **exceeds HPACK's 4,096-byte dynamic table and can never be
   indexed**. Classical tokens cost 1 byte/request after the first; ML-DSA-65
   re-pays ~3.9 KB on every request — a ~3,900:1 steady-state wire-cost ratio.
+- **The cliff has a one-line fix with a measured price: SETTINGS_HEADER_TABLE_SIZE
+  = 8 KiB re-indexes every ML-DSA-44/65 token** (16 KiB adds ML-DSA-87 + SLH-128s,
+  32 KiB covers all), returning steady state to ~1 B/request — the extra
+  per-connection memory pays for itself in wire bytes within 2–3 requests.
 - Key-by-value patterns (`jwk`, `x5c` headers) add 2.4–21 KB and are dead on
   arrival for PQ; keys must travel by reference (`kid` + JWKS).
 - A BC-signed ML-DSA-65 token verifies under the JDK 24 built-in provider
@@ -54,6 +58,7 @@ Method and threats to validity: [docs/EXPERIMENT-DESIGN.md](docs/EXPERIMENT-DESI
 | **E3** `bench` | per-token sign/verify latency, BouncyCastle vs JDK 24 built-ins | `results/sign-verify-bench.csv` |
 | **E4** `cose` | byte-exact CWT/COSE_Sign1 (RFC 8392/9052) vs compact JWS — binary and re-base64url'd | `results/cose-vs-jose.csv` |
 | **E5** `hpack` | HPACK Huffman savings + dynamic-table indexability (per-request steady-state cost) | `results/hpack.csv` |
+| **E6** `tablesweep` | SETTINGS_HEADER_TABLE_SIZE 4–64 KiB sweep: indexability thresholds, wire savings, payback | `results/hpack-table-sweep.csv` |
 
 Supporting code: byte-exact compact-JWS construction over `java.security.Signature`
 (`CompactJws`), draft "AKP" JWKs for PQ keys (`Jwks`), and a working
@@ -67,7 +72,7 @@ Requires JDK 21+ (JDK 24+ adds the built-in ML-DSA provider to the comparison) a
 
 ```bash
 mvn package
-java -jar target/pqc-jose-token-limits-0.1.0-SNAPSHOT.jar all     # or: sizes | servers | bench | cose | hpack
+java -jar target/pqc-jose-token-limits-0.1.0-SNAPSHOT.jar all     # or: sizes | servers | bench | cose | hpack | tablesweep
 ```
 
 E2 starts four embedded servers on ephemeral localhost ports, one at a time.

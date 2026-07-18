@@ -6,7 +6,9 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
 
 ## Headline results
 
-1. **ML-DSA-65 — the CNSA 2.0 workhorse parameter set — never fits in a cookie.**
+1. **ML-DSA-65 — the parameter set most commonly recommended for general
+   enterprise use (CNSA 2.0 mandates the larger ML-DSA-87 for National
+   Security Systems) — never fits in a cookie.**
    Even the minimal RFC 9068 profile with the leanest (`kid`) header produces a
    4,812-byte token; with the `__Host-session=` prefix that exceeds the 4,096-byte
    RFC 6265 cookie capacity. Every browser-cookie-based session pattern (BFF

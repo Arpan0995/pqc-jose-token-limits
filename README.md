@@ -21,7 +21,8 @@ deployment-planning data that U.S. enterprises and agencies migrating under NIST
 
 - **ML-DSA-65 never fits in a cookie** — even a minimal RFC 9068 access token with a
   bare `kid` header is 4,812 B, over the RFC 6265 per-cookie capacity. Browser-session
-  patterns break at the CNSA 2.0 default parameter set.
+  patterns break at the most commonly recommended enterprise parameter set
+  (CNSA 2.0's mandated ML-DSA-87 is larger still).
 - **ML-DSA-44/65 bearer tokens pass all four embedded Java servers at default
   config; ML-DSA-87 enterprise tokens and *all* SLH-DSA tokens are rejected by
   Jetty (431), Tomcat (400), and stock Netty (decoder kill)** — while Undertow's

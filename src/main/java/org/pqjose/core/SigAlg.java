@@ -9,10 +9,10 @@ import java.util.List;
 /**
  * The signature algorithms under study.
  *
- * JOSE "alg" values: RFC 7518 for the classical baselines; the ML-DSA values follow
- * draft-ietf-cose-dilithium (JOSE registrations "ML-DSA-44/65/87", kty "AKP"), and the
- * SLH-DSA values follow draft-ietf-cose-sphincs-plus. Both are drafts; the identifiers
- * are recorded here as-of July 2026 and pinned in docs/EXPERIMENT-DESIGN.md.
+ * JOSE "alg" values: RFC 7518 for the classical baselines; the ML-DSA values are the
+ * RFC 9964 registrations ("ML-DSA-44/65/87", kty "AKP"); the SLH-DSA values follow
+ * draft-ietf-cose-sphincs-plus, still a draft as of July 2026, and are pinned in
+ * docs/EXPERIMENT-DESIGN.md.
  */
 public enum SigAlg {
 

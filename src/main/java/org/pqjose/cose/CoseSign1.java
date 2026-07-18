@@ -12,8 +12,8 @@ import java.security.Signature;
  * mirroring CompactJws on the JOSE side.
  *
  * COSE alg identifiers: ES256=-7, EdDSA=-8, RS256=-257 (RFC 8812). The ML-DSA
- * values (-48/-49/-50) follow draft-ietf-cose-dilithium; the SLH-DSA values are
- * provisional draft-range placeholders pinned for this study. Final registry
+ * values (-48/-49/-50) are the RFC 9964 registrations; the SLH-DSA values are
+ * provisional placeholders pending draft-ietf-cose-sphincs-plus. Final registry
  * numbers cannot change any conclusion: a small negative int costs 1-2 bytes
  * either way.
  */

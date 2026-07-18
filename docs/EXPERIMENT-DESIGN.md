@@ -7,8 +7,8 @@ mechanism in microservice and API backends. The infrastructure it rides on — c
 jars, HTTP header buffers, API-gateway limits — was sized in an era of 64–256-byte
 signatures. FIPS 204 (ML-DSA) signatures are 2,420–4,627 bytes; FIPS 205 (SLH-DSA)
 signatures are 7,856–17,088 bytes at the 128-bit security level alone. The IETF
-COSE/JOSE working group is standardizing ML-DSA and SLH-DSA "alg" values
-(draft-ietf-cose-dilithium, draft-ietf-cose-sphincs-plus), which makes the question
+has standardized ML-DSA "alg" values for JOSE and COSE (RFC 9964, May 2026) and is
+standardizing SLH-DSA's (draft-ietf-cose-sphincs-plus), which makes the question
 concrete: **where exactly does the token plumbing of a real Java backend break when
 tokens carry post-quantum signatures, and which mitigations restore compatibility?**
 
@@ -44,8 +44,8 @@ No published study measures this empirically. This repository is that experiment
 
 **Algorithms (8).** Classical baselines RS256 (RSA-2048), ES256 (P-256), EdDSA
 (Ed25519); ML-DSA-44/65/87 (FIPS 204); SLH-DSA-SHA2-128s and -128f (FIPS 205).
-JOSE `alg` identifiers for the PQ algorithms follow the IETF drafts as of July 2026
-and are pinned in `SigAlg.java`.
+JOSE `alg` identifiers: ML-DSA per RFC 9964; SLH-DSA per the active IETF draft as
+of July 2026, pinned in `SigAlg.java`.
 
 **Claim profiles (3), byte-identical across algorithms** (`ClaimProfiles.java`):
 
@@ -80,7 +80,7 @@ protected header, `kid` (label 4, bstr) unprotected, CWT claims map as payload.
 Registered claims move to RFC 8392 integer keys (iss=1 … cti=7, scope=9 per
 RFC 9200; jti becomes cti with the UUID as 16 raw bytes); unregistered claims keep
 text keys. COSE `alg` identifiers: ES256=-7, EdDSA=-8, RS256=-257 (RFC 8812);
-ML-DSA -48/-49/-50 per draft-ietf-cose-dilithium; SLH-DSA values are provisional
+ML-DSA -48/-49/-50 per RFC 9964; SLH-DSA values are provisional
 placeholders — registry outcomes change 1–2 bytes at most. Two comparisons are
 reported: binary COSE vs ASCII compact JWS (binary transports: CoAP/OSCORE, MQTT,
 gRPC binary metadata), and base64url(COSE) vs compact JWS (HTTP-header reality).
@@ -121,7 +121,7 @@ across runs and algorithms.
 
 ## Threats to validity
 
-- The PQ JOSE `alg`/`kty` identifiers are **drafts**; names may change before RFC
+- The SLH-DSA JOSE `alg` identifiers are **drafts**; names may change before RFC
   publication. Sizes are unaffected (they are dictated by FIPS 204/205 signature
   and key lengths plus base64url's 4/3 expansion).
 - E3 is a median-of-N single-machine microbenchmark, not a JMH campaign; it is
@@ -135,7 +135,7 @@ across runs and algorithms.
 - The Netty target answers oversized headers with 431 in the test handler; the
   8 KiB rejection itself comes from the stock `HttpServerCodec` decoder limit.
 - The SLH-DSA COSE `alg` identifiers are provisional placeholders (the ML-DSA ones
-  follow draft-ietf-cose-dilithium); any final registry value of similar magnitude
+  are the RFC 9964 registrations); any final registry value of similar magnitude
   encodes in the same 1–2 bytes.
 - Netty's HPACK encoder skips Huffman for values shorter than 512 bytes (a CPU
   optimization, `huffCodeThreshold`); the two small classical tokens affected are

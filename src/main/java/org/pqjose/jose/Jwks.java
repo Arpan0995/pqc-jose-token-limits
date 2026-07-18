@@ -14,8 +14,8 @@ import java.util.Map;
  * Public-key JWK members per algorithm.
  *
  * Classical algorithms use RFC 7517/7518 kty values. ML-DSA and SLH-DSA use the
- * draft "AKP" (Algorithm Key Pair) key type from draft-ietf-cose-dilithium: the raw
- * public key as a single base64url "pub" member with "alg" carrying the parameter set.
+ * "AKP" (Algorithm Key Pair) key type registered by RFC 9964: the raw public key as
+ * a single base64url "pub" member with "alg" carrying the parameter set.
  */
 public final class Jwks {
 

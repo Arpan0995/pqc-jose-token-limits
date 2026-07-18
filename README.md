@@ -7,8 +7,8 @@ actually rides on — measured in Java, against live embedded servers.
 
 ## Why
 
-The IETF COSE/JOSE working group is standardizing post-quantum `alg` values
-(draft-ietf-cose-dilithium, draft-ietf-cose-sphincs-plus). A JWT that today carries
+The IETF has standardized post-quantum `alg` values for ML-DSA (RFC 9964, May 2026)
+and is standardizing SLH-DSA's (draft-ietf-cose-sphincs-plus). A JWT that today carries
 a 64-byte ES256 signature will carry 2,420–17,088 bytes of ML-DSA/SLH-DSA signature —
 before base64url's 4/3 expansion. The transport underneath (RFC 6265's 4,096-byte
 cookie capacity, 8 KiB header buffers in nginx/Apache/Jetty/Tomcat/Netty, AWS API
@@ -81,10 +81,11 @@ Full run takes ~2–3 minutes; SLH-DSA-128s signing dominates the bench time.
 
 ## Scope notes
 
-The PQ JOSE identifiers are IETF **drafts** (pinned in `SigAlg.java`), and the
-PQ COSE algorithm numbers are draft/provisional (pinned in `CoseSign1.java`);
-sizes are dictated by FIPS 204/205 and are stable regardless of final
-identifiers. nginx/Apache/AWS limits are taken from their documentation; the four
+The ML-DSA JOSE/COSE identifiers are standardized (RFC 9964, May 2026) and this
+harness matches them exactly — `alg` names, COSE code points −48/−49/−50, and
+the AKP key type; the SLH-DSA identifiers remain an IETF **draft** (pinned in
+`SigAlg.java`/`CoseSign1.java`). Sizes are dictated by FIPS 204/205 and are
+stable regardless of final identifiers. nginx/Apache/AWS limits are taken from their documentation; the four
 Java servers and the HPACK encoder are measured live. See the threats-to-validity
 section in the design doc before citing numbers.
 

@@ -83,6 +83,18 @@
       <artifactId>netty-codec-http</artifactId>
       <version>${netty.version}</version>
     </dependency>
+    <!-- E5: HPACK (RFC 7541) encoder for header-compression measurements. -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-codec-http2</artifactId>
+      <version>${netty.version}</version>
+    </dependency>
+    <!-- E4: CBOR encoding for CWT/COSE_Sign1 (RFC 8392 / RFC 9052). -->
+    <dependency>
+      <groupId>com.upokecenter</groupId>
+      <artifactId>cbor</artifactId>
+      <version>4.5.6</version>
+    </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>

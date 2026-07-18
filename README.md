@@ -29,6 +29,14 @@ deployment-planning data that U.S. enterprises and agencies migrating under NIST
 - **ML-DSA costs bytes, not CPU** (sign 155–323 µs, inside the classical envelope;
   RS256 is slower), but **SLH-DSA-SHA2-128s signing costs 522 ms per token** —
   unusable for online issuance independent of any size limit.
+- **CWT/COSE recovers 26–28% of PQ token size in binary form, but only 2–4% once
+  re-base64url'd into an HTTP header** — CBOR kills the base64 tax only on
+  binary-capable transports, and does not rescue the ML-DSA-65 cookie.
+- **HPACK Huffman saves a uniform ~20% of bandwidth but zero limit headroom**
+  (HTTP/2 limits count uncompressed octets) — and the sharpest finding: every
+  token ≥ ML-DSA-65 **exceeds HPACK's 4,096-byte dynamic table and can never be
+  indexed**. Classical tokens cost 1 byte/request after the first; ML-DSA-65
+  re-pays ~3.9 KB on every request — a ~3,900:1 steady-state wire-cost ratio.
 - Key-by-value patterns (`jwk`, `x5c` headers) add 2.4–21 KB and are dead on
   arrival for PQ; keys must travel by reference (`kid` + JWKS).
 - A BC-signed ML-DSA-65 token verifies under the JDK 24 built-in provider
@@ -44,6 +52,8 @@ Method and threats to validity: [docs/EXPERIMENT-DESIGN.md](docs/EXPERIMENT-DESI
 | **E1** `sizes` | token size per algorithm × claim profile × header variant vs documented limits | `results/token-sizes.csv`, `results/provider-matrix.csv` |
 | **E2** `servers` | accept/reject at Jetty/Tomcat/Undertow/Netty **defaults** + empirical header ceiling (binary search) | `results/server-defaults.csv` |
 | **E3** `bench` | per-token sign/verify latency, BouncyCastle vs JDK 24 built-ins | `results/sign-verify-bench.csv` |
+| **E4** `cose` | byte-exact CWT/COSE_Sign1 (RFC 8392/9052) vs compact JWS — binary and re-base64url'd | `results/cose-vs-jose.csv` |
+| **E5** `hpack` | HPACK Huffman savings + dynamic-table indexability (per-request steady-state cost) | `results/hpack.csv` |
 
 Supporting code: byte-exact compact-JWS construction over `java.security.Signature`
 (`CompactJws`), draft "AKP" JWKs for PQ keys (`Jwks`), and a working
@@ -57,7 +67,7 @@ Requires JDK 21+ (JDK 24+ adds the built-in ML-DSA provider to the comparison) a
 
 ```bash
 mvn package
-java -jar target/pqc-jose-token-limits-0.1.0-SNAPSHOT.jar all     # or: sizes | servers | bench
+java -jar target/pqc-jose-token-limits-0.1.0-SNAPSHOT.jar all     # or: sizes | servers | bench | cose | hpack
 ```
 
 E2 starts four embedded servers on ephemeral localhost ports, one at a time.
@@ -65,10 +75,12 @@ Full run takes ~2–3 minutes; SLH-DSA-128s signing dominates the bench time.
 
 ## Scope notes
 
-The PQ JOSE identifiers are IETF **drafts** (pinned in `SigAlg.java`); sizes are
-dictated by FIPS 204/205 and are stable regardless of final names. nginx/Apache/AWS
-limits are taken from their documentation; the four Java servers are measured live.
-See the threats-to-validity section in the design doc before citing numbers.
+The PQ JOSE identifiers are IETF **drafts** (pinned in `SigAlg.java`), and the
+PQ COSE algorithm numbers are draft/provisional (pinned in `CoseSign1.java`);
+sizes are dictated by FIPS 204/205 and are stable regardless of final
+identifiers. nginx/Apache/AWS limits are taken from their documentation; the four
+Java servers and the HPACK encoder are measured live. See the threats-to-validity
+section in the design doc before citing numbers.
 
 ## Related work in this series
 

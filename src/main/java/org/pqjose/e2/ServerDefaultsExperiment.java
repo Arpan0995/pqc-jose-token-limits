@@ -1,22 +1,16 @@
 package org.pqjose.e2;
 
 import org.pqjose.core.Csv;
-import org.pqjose.core.Keys;
 import org.pqjose.core.Providers;
-import org.pqjose.core.SigAlg;
 import org.pqjose.e2.servers.JettyTarget;
 import org.pqjose.e2.servers.NettyTarget;
 import org.pqjose.e2.servers.TomcatTarget;
 import org.pqjose.e2.servers.UndertowTarget;
-import org.pqjose.jose.CompactJws;
-import org.pqjose.profiles.ClaimProfiles;
+import org.pqjose.jose.TokenFactory;
 
 import java.nio.file.Path;
-import java.security.KeyPair;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * E2: drive real PQ-signed bearer tokens through four embedded Java HTTP servers at
@@ -25,13 +19,11 @@ import java.util.Map;
  */
 public final class ServerDefaultsExperiment {
 
-    private record TokenCase(String alg, String profile, String token) {}
-
     private ServerDefaultsExperiment() {}
 
     public static void run(Path resultsDir) throws Exception {
         Providers.install();
-        List<TokenCase> cases = buildTokens();
+        List<TokenFactory.TokenCase> cases = TokenFactory.kidTokens();
         List<String> rows = new ArrayList<>();
         List<ServerTarget> targets = List.of(
                 new JettyTarget(), new TomcatTarget(), new UndertowTarget(), new NettyTarget());
@@ -41,15 +33,15 @@ public final class ServerDefaultsExperiment {
             waitReady(port);
             System.out.printf("%n%s %s on :%d%n", target.name(), target.version(), port);
 
-            for (TokenCase tc : cases) {
+            for (TokenFactory.TokenCase tc : cases) {
                 String result = HttpProbe.get(port, tc.token());
                 boolean accepted = "200".equals(result);
-                rows.add(String.join(",", target.name(), target.version(), tc.alg(), tc.profile(),
-                        String.valueOf(tc.token().length()),
+                rows.add(String.join(",", target.name(), target.version(), tc.alg().joseName,
+                        tc.profile(), String.valueOf(tc.token().length()),
                         String.valueOf("Authorization: Bearer ".length() + tc.token().length()),
                         result, String.valueOf(accepted)));
                 System.out.printf("  %-20s %-18s %7d B -> %s%n",
-                        tc.alg(), tc.profile(), tc.token().length(), result);
+                        tc.alg().joseName, tc.profile(), tc.token().length(), result);
             }
 
             long ceiling = ceiling(port);
@@ -63,28 +55,6 @@ public final class ServerDefaultsExperiment {
         Csv.write(resultsDir.resolve("server-defaults.csv"),
                 "server,server_version,alg,profile,token_bytes,bearer_header_bytes,result,accepted",
                 rows);
-    }
-
-    private static List<TokenCase> buildTokens() throws Exception {
-        List<TokenCase> cases = new ArrayList<>();
-        for (SigAlg alg : SigAlg.values()) {
-            List<String> providers = alg.availableProviders();
-            if (providers.isEmpty()) {
-                continue;
-            }
-            String provider = providers.contains(Providers.BC) ? Providers.BC : providers.get(0);
-            KeyPair kp = alg.generateKeyPair(provider);
-            String kid = Keys.kid(kp.getPublic());
-            for (Map.Entry<String, Map<String, Object>> profile : ClaimProfiles.all().entrySet()) {
-                Map<String, Object> header = new LinkedHashMap<>();
-                header.put("typ", profile.getKey().equals("oidc-id-token") ? "JWT" : "at+jwt");
-                header.put("alg", alg.joseName);
-                header.put("kid", kid);
-                CompactJws.Token t = CompactJws.sign(alg, provider, kp.getPrivate(), header, profile.getValue());
-                cases.add(new TokenCase(alg.joseName, profile.getKey(), t.compact()));
-            }
-        }
-        return cases;
     }
 
     /** Largest synthetic token (in bytes) the server still answers 200 for, up to 2 MiB. */

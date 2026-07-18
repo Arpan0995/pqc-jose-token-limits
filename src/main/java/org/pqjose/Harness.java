@@ -4,6 +4,8 @@ import org.pqjose.core.Providers;
 import org.pqjose.e1.SizeExperiment;
 import org.pqjose.e2.ServerDefaultsExperiment;
 import org.pqjose.e3.SpeedBench;
+import org.pqjose.e4.CoseExperiment;
+import org.pqjose.e5.HpackExperiment;
 
 import java.nio.file.Path;
 
@@ -20,13 +22,17 @@ public final class Harness {
             case "sizes" -> SizeExperiment.run(results);
             case "servers" -> ServerDefaultsExperiment.run(results);
             case "bench" -> SpeedBench.run(results);
+            case "cose" -> CoseExperiment.run(results);
+            case "hpack" -> HpackExperiment.run(results);
             case "all" -> {
                 SizeExperiment.run(results);
                 ServerDefaultsExperiment.run(results);
                 SpeedBench.run(results);
+                CoseExperiment.run(results);
+                HpackExperiment.run(results);
             }
             default -> {
-                System.err.println("usage: Harness [sizes|servers|bench|all] [resultsDir]");
+                System.err.println("usage: Harness [sizes|servers|bench|cose|hpack|all] [resultsDir]");
                 System.exit(2);
             }
         }

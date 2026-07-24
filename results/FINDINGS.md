@@ -1,4 +1,4 @@
-# Findings — PQ Signatures in JOSE/JWT Token Plumbing
+# Findings - PQ Signatures in JOSE/JWT Token Plumbing
 
 Run: July 2026, Corretto JDK 24.0.2 (Apple Silicon), BouncyCastle 1.85.
 Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
@@ -6,9 +6,9 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
 
 ## Headline results
 
-1. **ML-DSA-65 — the parameter set most commonly recommended for general
+1. **ML-DSA-65 - the parameter set most commonly recommended for general
    enterprise use (CNSA 2.0 mandates the larger ML-DSA-87 for National
-   Security Systems) — never fits in a cookie.**
+   Security Systems) - never fits in a cookie.**
    Even the minimal RFC 9068 profile with the leanest (`kid`) header produces a
    4,812-byte token; with the `__Host-session=` prefix that exceeds the 4,096-byte
    RFC 6265 cookie capacity. Every browser-cookie-based session pattern (BFF
@@ -20,7 +20,7 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
    Tomcat 10.1 (400 + `IllegalArgumentException: Request header is too large` in
    the log), and stock Netty (decoder failure), while passing Undertow.
 
-3. **Every SLH-DSA token was rejected by three of the four servers** — including
+3. **Every SLH-DSA token was rejected by three of the four servers** - including
    the *minimal* profile at the *smallest* parameter set (SLH-DSA-SHA2-128s,
    10,886 B). SLH-DSA cannot be carried as an HTTP bearer token through
    default-configured Java infrastructure at all.
@@ -33,16 +33,16 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
    bytes between servers (8,166 / 8,114 / 8,138), so a token can even pass one
    servlet container and fail another.
 
-5. **CWT/COSE recovers 26–28% for PQ tokens in binary form — but only 2–4% once
+5. **CWT/COSE recovers 26-28% for PQ tokens in binary form - but only 2-4% once
    the CWT is re-base64url'd for an HTTP header.** CBOR kills the base64 tax only
    on transports that carry binary (CoAP/OSCORE, MQTT, gRPC binary metadata); in
    HTTP headers the signature re-pays the tax and only the CBOR claims compaction
    survives. Notably, a binary ML-DSA-65 minimal CWT (3,494 B) *would* fit the
-   4,096-byte cookie budget — but cookies are ASCII, and its base64 form (4,659 B)
+   4,096-byte cookie budget - but cookies are ASCII, and its base64 form (4,659 B)
    does not. COSE cannot rescue the cookie.
 
-6. **HPACK's Huffman table claws back a uniform ~19–20% from base64url tokens**
-   (an ML-DSA-65 minimal bearer goes 4,819 → 3,853 B on the wire) — but this
+6. **HPACK's Huffman table claws back a uniform ~19-20% from base64url tokens**
+   (an ML-DSA-65 minimal bearer goes 4,819 → 3,853 B on the wire) - but this
    saves *bandwidth only*: HTTP/2's `SETTINGS_MAX_HEADER_LIST_SIZE` and every
    server limit in E2 are enforced on **uncompressed** octets (RFC 7540 §6.5.2),
    so compression buys zero headroom against the limits measured in E1/E2.
@@ -51,9 +51,9 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
    study.** An indexed header entry costs name+value+32 bytes of the 4,096-byte
    default dynamic table. Classical bearer tokens fit, get indexed once, and cost
    **1 byte per request** from the second request on. Every ML-DSA-65, ML-DSA-87,
-   and SLH-DSA token — and ML-DSA-44 with enterprise claims — exceeds the table
+   and SLH-DSA token - and ML-DSA-44 with enterprise claims - exceeds the table
    and **can never be indexed**: each request re-pays the full Huffman'd literal
-   (3,853–20,391 B). Steady-state per-request wire cost of ML-DSA-65 vs classical
+   (3,853-20,391 B). Steady-state per-request wire cost of ML-DSA-65 vs classical
    is therefore ~3,900:1, not the ~7:1 the raw token sizes suggest. ML-DSA-44
    with lean claims is the last configuration that rides HTTP/2 efficiently.
 
@@ -61,20 +61,20 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
    SETTINGS_HEADER_TABLE_SIZE to 8 KiB restores full indexing for every ML-DSA-44
    and ML-DSA-65 token** (16 KiB adds ML-DSA-87 enterprise and SLH-DSA-128s;
    32 KiB covers everything tested). Once indexed, steady state returns to
-   ~1 byte/request, saving 3.8–20 KB per request; the extra table memory pays for
-   itself in wire bytes within 2–3 requests on a connection. The cost is
+   ~1 byte/request, saving 3.8-20 KB per request; the extra table memory pays for
+   itself in wire bytes within 2-3 requests on a connection. The cost is
    per-connection decoder memory (×4 at 16 KiB), which a high-concurrency
-   gateway multiplies by its connection count — a real but bounded price, and
+   gateway multiplies by its connection count - a real but bounded price, and
    the single most effective HTTP/2 mitigation this study found.
 
-9. **The cost of ML-DSA at the token layer is bytes, not CPU** — consistent with
-   the companion X.509 certpath study. ML-DSA sign/verify medians (155–323 µs /
-   67–118 µs) sit inside the classical envelope (RS256 sign is *slower* at
-   ~610–646 µs). **SLH-DSA-SHA2-128s signing is the exception: 522 ms per token**,
+9. **The cost of ML-DSA at the token layer is bytes, not CPU** - consistent with
+   the companion X.509 certpath study. ML-DSA sign/verify medians (155-323 µs /
+   67-118 µs) sit inside the classical envelope (RS256 sign is *slower* at
+   ~610-646 µs). **SLH-DSA-SHA2-128s signing is the exception: 522 ms per token**,
    which disqualifies it for online token issuance regardless of transport limits
    (128f trades that to 23 ms at +9 KiB of signature).
 
-## E1 — token sizes vs documented limits (kid header, bytes)
+## E1 - token sizes vs documented limits (kid header, bytes)
 
 | alg | sig (raw) | minimal | oidc-id | enterprise | cookie 4096 | 8 KiB line | APIGW 10240 |
 |---|---|---|---|---|---|---|---|
@@ -89,12 +89,12 @@ Raw data: `token-sizes.csv`, `server-defaults.csv`, `sign-verify-bench.csv`,
 
 Header-variant deltas (minimal profile): embedding the public key (`jwk`) adds
 2,412 B (ML-DSA-44) to 4,687 B (ML-DSA-87) and pushes ML-DSA-65 past the 8 KiB
-line (8,362 B); embedding a certificate (`x5c`) yields 10.7–25.4 KB tokens for the
-PQ algorithms — over the AWS API Gateway limit in every PQ case. PQ tokens must
+line (8,362 B); embedding a certificate (`x5c`) yields 10.7-25.4 KB tokens for the
+PQ algorithms - over the AWS API Gateway limit in every PQ case. PQ tokens must
 ship keys by reference (`kid` + JWKS); the self-describing-token patterns do not
 survive.
 
-## E2 — live behaviour at server defaults
+## E2 - live behaviour at server defaults
 
 | server | version | empirical max token | ML-DSA-44/65 | ML-DSA-87 ent. | SLH-DSA (all) |
 |---|---|---|---|---|---|
@@ -104,10 +104,10 @@ survive.
 | Netty (stock codec) | 4.1.115 | 8,138 B | 200 | **rejected** (decoder failure → 431) | **rejected** |
 
 Note the failure-mode inconsistency itself: the same oversized token surfaces as
-431, 400, or a decoder-level kill depending on the stack — relevant to anyone
+431, 400, or a decoder-level kill depending on the stack - relevant to anyone
 writing migration runbooks or alerting rules.
 
-## E3 — per-token latency, median (µs)
+## E3 - per-token latency, median (µs)
 
 | alg | provider | sign | verify |
 |---|---|---|---|
@@ -121,10 +121,10 @@ writing migration runbooks or alerting rules.
 | SLH-DSA-128f | BC | 23,247 | 1,324 |
 
 Provider matrix: ML-DSA is offered by both BC and the JDK 24 `SUN` provider
-(JEP 497) — and a BC-signed ML-DSA-65 token verifies under the JDK provider
+(JEP 497) - and a BC-signed ML-DSA-65 token verifies under the JDK provider
 (cross-provider test in `RoundTripTest`). SLH-DSA is BC-only on this JVM.
 
-## E4 — CWT/COSE_Sign1 vs compact JWS (bytes)
+## E4 - CWT/COSE_Sign1 vs compact JWS (bytes)
 
 | alg | profile | JWS | COSE (binary) | savings | b64url(COSE) | savings in header |
 |---|---|---|---|---|---|---|
@@ -138,11 +138,11 @@ Provider matrix: ML-DSA is offered by both BC and the JDK 24 `SUN` provider
 | SLH-DSA-128f | enterprise | 25,480 | 18,933 | 25.7% | 25,244 | 0.9% |
 
 The pattern inverts between families: for classical tokens the payload dominates,
-so CBOR claim compaction keeps 8–31% even after re-base64url; for PQ tokens the
+so CBOR claim compaction keeps 8-31% even after re-base64url; for PQ tokens the
 signature dominates, so the in-header savings shrink *as the signature grows*
 (4.2% → 0.9%). Full grid in `cose-vs-jose.csv`.
 
-## E5 — HPACK (RFC 7541) at the default 4,096 B dynamic table
+## E5 - HPACK (RFC 7541) at the default 4,096 B dynamic table
 
 | alg | profile | value B | Huffman'd | savings | req 2 | req 3 | indexable |
 |---|---|---|---|---|---|---|---|
@@ -160,20 +160,20 @@ between ML-DSA-44 lean tokens (indexed; 1 B/request steady state) and everything
 larger (never indexed; full literal every request). Footnote: the two small
 ES256/EdDSA minimal rows in `hpack.csv` show ≈0% Huffman savings because Netty's
 encoder skips Huffman below 512 B as a CPU optimization; browsers and nghttp2
-Huffman-encode regardless, so ~19–20% is the transferable figure. QPACK (HTTP/3,
+Huffman-encode regardless, so ~19-20% is the transferable figure. QPACK (HTTP/3,
 RFC 9204) shares the static Huffman table and dynamic-table economics.
 
-## E6 — SETTINGS_HEADER_TABLE_SIZE sweep
+## E6 - SETTINGS_HEADER_TABLE_SIZE sweep
 
 Smallest swept table size at which each token class becomes indexable (entry =
 name + value + 32; steady state ~1 B/request once indexed):
 
 | table size | newly indexable | wire saved per request | payback (requests) |
 |---|---|---|---|
-| 4 KiB (default) | all classical; ML-DSA-44 minimal/oidc | — | — |
-| 8 KiB | ML-DSA-44 enterprise; **all ML-DSA-65**; ML-DSA-87 minimal/oidc | 3,847–5,703 B | 2–3 |
-| 16 KiB | ML-DSA-87 enterprise; all SLH-DSA-128s | 7,098–10,582 B | 2–3 |
-| 32 KiB | all SLH-DSA-128f | 18,549–20,390 B | 2 |
+| 4 KiB (default) | all classical; ML-DSA-44 minimal/oidc | - | - |
+| 8 KiB | ML-DSA-44 enterprise; **all ML-DSA-65**; ML-DSA-87 minimal/oidc | 3,847-5,703 B | 2-3 |
+| 16 KiB | ML-DSA-87 enterprise; all SLH-DSA-128s | 7,098-10,582 B | 2-3 |
+| 32 KiB | all SLH-DSA-128f | 18,549-20,390 B | 2 |
 
 Full grid (5 table sizes × 24 tokens) in `hpack-table-sweep.csv`. Request 1
 includes the dynamic-table-size-update bytes emitted by the resize.
@@ -182,20 +182,20 @@ includes the dynamic-table-size-update bytes emitted by the resize.
 
 | mitigation | effect measured |
 |---|---|
-| Drop to ML-DSA-44 | −1,185 B vs -65; restores *cookie* fit for minimal/oidc profiles only — and (E5) is the only PQ set that stays HPACK-indexable |
+| Drop to ML-DSA-44 | −1,185 B vs -65; restores *cookie* fit for minimal/oidc profiles only - and (E5) is the only PQ set that stays HPACK-indexable |
 | `kid` instead of `jwk`/`x5c` | −2.4 KB to −21 KB; mandatory for PQ, sufficient to keep ML-DSA-44/65 under every 8 KiB header limit |
 | Trim enterprise claims (groups by reference) | −2.3 KB payload; moves ML-DSA-87 back under the 8 KiB ceilings, ML-DSA-44 back under the HPACK indexability line |
-| CWT/COSE instead of JWT (E4) | −26–28% on binary transports; only −2–4% in HTTP headers — does not rescue the ML-DSA-65 cookie |
-| HTTP/2 HPACK (E5) | −19–20% bandwidth; zero headroom against limits (enforced on uncompressed octets); indexing benefit unavailable to any token ≥ ML-DSA-65 at the default table |
-| Raise SETTINGS_HEADER_TABLE_SIZE (E6) | 8 KiB re-indexes all ML-DSA-44/65 (steady state ~1 B/req, payback in 2–3 requests); cost is per-connection decoder memory × fleet concurrency |
+| CWT/COSE instead of JWT (E4) | −26-28% on binary transports; only −2-4% in HTTP headers - does not rescue the ML-DSA-65 cookie |
+| HTTP/2 HPACK (E5) | −19-20% bandwidth; zero headroom against limits (enforced on uncompressed octets); indexing benefit unavailable to any token ≥ ML-DSA-65 at the default table |
+| Raise SETTINGS_HEADER_TABLE_SIZE (E6) | 8 KiB re-indexes all ML-DSA-44/65 (steady state ~1 B/req, payback in 2-3 requests); cost is per-connection decoder memory × fleet concurrency |
 | Token-by-reference (opaque handle + introspection) | sidesteps all limits; the only pattern that carries SLH-DSA |
-| SLH-DSA-128f instead of -128s for issuance latency | 522 ms → 23 ms sign, but +12.3 KB token — solves the CPU problem by worsening the fatal size problem |
+| SLH-DSA-128f instead of -128s for issuance latency | 522 ms → 23 ms sign, but +12.3 KB token - solves the CPU problem by worsening the fatal size problem |
 
 ## Follow-up work
 
 - Spring Cloud Gateway / Kong / Envoy as intermediaries (proxy default limits,
   whether they mark `authorization` never-indexed, and whether their
-  SETTINGS_HEADER_TABLE_SIZE is even configurable — the E6 fix is only available
+  SETTINGS_HEADER_TABLE_SIZE is even configurable - the E6 fix is only available
   where the knob exists).
 - Detached-payload JWS (RFC 7797) and split-token/cookie-sharding patterns.
 - CWT end-to-end on a genuinely binary transport (gRPC metadata-bin, MQTT v5).
